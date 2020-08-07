@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <script src="js/amazon-chime-sdk.min.js"></script>
+  <script>
+    (async () => {
+      const logger = new ChimeSDK.ConsoleLogger('MyLogger', ChimeSDK.LogLevel.ERROR);
+      const deviceController = new ChimeSDK.DefaultDeviceController(logger);
+
+      const meetingResponse = {
+        "Meeting": {{ .Meeting }}
+      };
+
+      const attendeeResponse = {
+        "Attendee": {{ .Attendee }}
+      };
+
+      const configuration = new ChimeSDK.MeetingSessionConfiguration(meetingResponse, attendeeResponse);
+      const meetingSession = new ChimeSDK.DefaultMeetingSession(configuration, logger, deviceController);
+
+      const audioInputDevices = await meetingSession.audioVideo.listAudioInputDevices();
+      const audioOutputDevices = await meetingSession.audioVideo.listAudioOutputDevices();
+      const videoInputDevices = await meetingSession.audioVideo.listVideoInputDevices();
+
+      meetingSession.audioVideo.chooseVideoInputQuality(1280, 720, 3, 1000);
+      // await meetingSession.audioVideo.chooseVideoInputDevice(videoInputDevices[0].deviceId);
+      // await meetingSession.audioVideo.chooseAudioInputDevice(audioInputDevices[0].deviceId);
+      if (audioOutputDevices[0]) {
+        await meetingSession.audioVideo.chooseAudioOutputDevice(audioOutputDevices[0].deviceId);
+      }
+
+      const audioElement = document.getElementById('audio-preview');
+      meetingSession.audioVideo.bindAudioElement(audioElement);
+
+      const videoElement = document.getElementById('video-preview');
+
+      const observer = {
+        audioVideoDidStart: () => {
+          console.log('Started');
+        },
+        videoTileDidUpdate: tileState => {
+          if (!tileState.boundAttendeeId || tileState.localTile || tileState.isContent) {
+            return;
+          }
+
+          console.log('Start video');
+          meetingSession.audioVideo.bindVideoElement(tileState.tileId, videoElement);
+        }
+      };
+
+      meetingSession.audioVideo.addObserver(observer);
+      meetingSession.audioVideo.start();
+      meetingSession.audioVideo.startLocalVideoTile();
+    })();
+  </script>
+</head>
+
+<body>
+  <div>
+    <h1>Video test</h1>
+    <p>Meeting: {{ .Meeting }}</p>
+    <p>Attendee: {{ .Attendee }}</p>
+  </div>
+  <video id="video-preview" style="width:100%; height: 500px"></video>
+  <audio id="audio-preview"></audio>
+</body>
+
+</html>
